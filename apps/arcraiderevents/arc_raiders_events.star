@@ -83,11 +83,11 @@ def format_countdown(ms_remaining):
     seconds = total_seconds % 60
 
     if hours > 0:
-        return str(hours) + "h" + pad_zero(minutes) + "m"
+        return str(hours) + ":" + pad_zero(minutes) + ":" + pad_zero(seconds)
     elif minutes > 0:
-        return str(minutes) + "m" + pad_zero(seconds) + "s"
+        return pad_zero(minutes) + ":" + pad_zero(seconds)
     else:
-        return str(seconds) + "s"
+        return "0:" + pad_zero(seconds)
 
 def main(config):
     # Get current time in milliseconds
@@ -141,113 +141,27 @@ def main(config):
         elif start > now_ms and len(upcoming_events) < 6:
             upcoming_events.append(event)
 
-    # Build animation frames
-    frames = []
+    # Build event list for display
+    display_events = []
 
-    # Show active events (green theme)
-    for event in active_events[:4]:
-        end_ms = int(event["endTime"])
-        remaining = end_ms - now_ms
-        countdown = format_countdown(remaining)
-        event_name = get_short_event(event["name"])
+    for event in active_events[:3]:
+        display_events.append({
+            "name": event["name"],
+            "map": event["map"],
+            "remaining_ms": int(event["endTime"]) - now_ms,
+            "type": "active",
+        })
 
-        frame = render.Box(
-            color = BG_DARK,
-            child = render.Column(
-                children = [
-                    # Header row: cyan dot + "ACTIVE"
-                    render.Row(
-                        expanded = True,
-                        main_align = "space_between",
-                        cross_align = "center",
-                        children = [
-                            render.Row(
-                                cross_align = "center",
-                                children = [
-                                    render.Box(width = 4, height = 4, color = ARC_CYAN),
-                                    render.Box(width = 1, height = 1),
-                                    render.Text("ACTIVE", color = ARC_CYAN, font = "tom-thumb"),
-                                ],
-                            ),
-                            render.Text(countdown, color = ARC_GREEN, font = "tom-thumb"),
-                        ],
-                    ),
-                    # Divider
-                    render.Box(width = 64, height = 1, color = ARC_CYAN_DIM),
-                    render.Box(width = 64, height = 1),
-                    # Event name (scrolling if needed)
-                    render.Marquee(
-                        width = 64,
-                        child = render.Text(event_name, color = WHITE, font = "tb-8"),
-                    ),
-                    render.Box(width = 64, height = 1),
-                    # Map name
-                    render.Row(
-                        expanded = True,
-                        main_align = "space_between",
-                        children = [
-                            render.Text(event["map"], color = GRAY, font = "tom-thumb"),
-                            render.Text("ENDS " + countdown, color = ARC_CYAN_DIM, font = "tom-thumb"),
-                        ],
-                    ),
-                ],
-            ),
-        )
-        frames.append(frame)
-
-    # Show upcoming events (cyan theme)
     for event in upcoming_events[:3]:
-        start_ms = int(event["startTime"])
-        remaining = start_ms - now_ms
-        countdown = format_countdown(remaining)
-        event_name = get_short_event(event["name"])
-
-        frame = render.Box(
-            color = BG_DARK,
-            child = render.Column(
-                children = [
-                    # Header row: yellow dot + "NEXT"
-                    render.Row(
-                        expanded = True,
-                        main_align = "space_between",
-                        cross_align = "center",
-                        children = [
-                            render.Row(
-                                cross_align = "center",
-                                children = [
-                                    render.Box(width = 4, height = 4, color = ARC_YELLOW),
-                                    render.Box(width = 1, height = 1),
-                                    render.Text("UPCOMING", color = ARC_YELLOW, font = "tom-thumb"),
-                                ],
-                            ),
-                            render.Text(countdown, color = ARC_YELLOW, font = "tom-thumb"),
-                        ],
-                    ),
-                    # Divider
-                    render.Box(width = 64, height = 1, color = ARC_YELLOW_DIM),
-                    render.Box(width = 64, height = 1),
-                    # Event name (scrolling if needed)
-                    render.Marquee(
-                        width = 64,
-                        child = render.Text(event_name, color = WHITE, font = "tb-8"),
-                    ),
-                    render.Box(width = 64, height = 1),
-                    # Map name
-                    render.Row(
-                        expanded = True,
-                        main_align = "space_between",
-                        children = [
-                            render.Text(event["map"], color = GRAY, font = "tom-thumb"),
-                            render.Text("IN " + countdown, color = ARC_YELLOW_DIM, font = "tom-thumb"),
-                        ],
-                    ),
-                ],
-            ),
-        )
-        frames.append(frame)
+        display_events.append({
+            "name": event["name"],
+            "map": event["map"],
+            "remaining_ms": int(event["startTime"]) - now_ms,
+            "type": "upcoming",
+        })
 
     # Fallback if no events
-    if len(frames) == 0:
+    if len(display_events) == 0:
         return render.Root(
             child = render.Box(
                 color = BG_DARK,
@@ -265,22 +179,111 @@ def main(config):
             ),
         )
 
-    # If only 1 frame, show it static
-    if len(frames) == 1:
-        return render.Root(
-            child = frames[0],
-        )
-
-    # Animate through frames (each frame shown for ~4 seconds)
+    # Generate animated frames with live countdown
+    # Each event shown for ~8 seconds, countdown ticks every second
     animation_frames = []
-    frames_per_event = 75  # ~5 seconds at 15fps
+    seconds_per_event = 8
+    frames_per_second = 10  # 10fps
 
-    for frame in frames:
-        for _ in range(frames_per_event):
-            animation_frames.append(frame)
+    for evt in display_events:
+        for sec in range(seconds_per_event):
+            remaining = evt["remaining_ms"] - (sec * 1000)
+            if remaining < 0:
+                remaining = 0
+            countdown = format_countdown(remaining)
+
+            if evt["type"] == "active":
+                status_label = "ACTIVE"
+                status_color = ARC_GREEN
+                divider_color = ARC_YELLOW_DIM
+                timer_color = ARC_GREEN
+                suffix = countdown
+                suffix_color = ARC_RED
+                name_color = ARC_YELLOW
+            else:
+                status_label = "UPCOMING"
+                status_color = ARC_CYAN
+                divider_color = ARC_CYAN_DIM
+                timer_color = ARC_CYAN
+                suffix = countdown
+                suffix_color = ARC_CYAN
+                name_color = WHITE
+
+            # Determine right-side content: logo stripes for active, countdown for upcoming
+            if evt["type"] == "active":
+                right_side = render.Row(
+                    children = [
+                        render.Box(width = 1, height = 5, color = ARC_CYAN),
+                        render.Box(width = 1, height = 5, color = ARC_GREEN),
+                        render.Box(width = 1, height = 5, color = ARC_YELLOW),
+                        render.Box(width = 1, height = 5, color = ARC_RED),
+                    ],
+                )
+            else:
+                right_side = render.Text(countdown, color = timer_color, font = "tom-thumb")
+
+            frame = render.Box(
+                color = BG_DARK,
+                child = render.Padding(
+                    pad = (0, 0, 1, 0),
+                    child = render.Column(
+                        expanded = True,
+                        main_align = "space_between",
+                        children = [
+                            render.Row(
+                                expanded = True,
+                                main_align = "center",
+                                cross_align = "center",
+                                children = [
+                                    render.Row(
+                                        children = [
+                                            render.Box(width = 1, height = 5, color = ARC_CYAN),
+                                            render.Box(width = 1, height = 5, color = ARC_GREEN),
+                                            render.Box(width = 1, height = 5, color = ARC_YELLOW),
+                                            render.Box(width = 1, height = 5, color = ARC_RED),
+                                        ],
+                                    ),
+                                    render.Box(width = 1, height = 1),
+                                    render.Text(status_label, color = status_color, font = "tom-thumb"),
+                                    render.Box(width = 1, height = 1),
+                                    right_side,
+                                ],
+                            ),
+                            render.Column(
+                                children = [
+                                    render.Box(width = 64, height = 1, color = "#007380"),
+                                    render.Box(width = 64, height = 1, color = "#007028"),
+                                    render.Marquee(
+                                        width = 64,
+                                        child = render.Text(evt["name"], color = name_color, font = "tb-8"),
+                                    ),
+                                    render.Box(width = 64, height = 1, color = "#806b00"),
+                                    render.Box(width = 64, height = 1, color = "#801818"),
+                                ],
+                            ),
+                            render.Row(
+                                expanded = True,
+                                main_align = "space_between",
+                                children = [
+                                    render.Marquee(
+                                        width = 35,
+                                        child = render.Text(evt["map"], color = ARC_CYAN, font = "CG-pixel-3x5-mono"),
+                                    ),
+                                    render.Box(width = 2, height = 1),
+                                    render.Text(suffix, color = suffix_color, font = "tom-thumb"),
+                                ],
+                            ),
+                        ],
+                    ),
+                ),
+            )
+
+            # Repeat this frame for 1 second of display time
+            for _ in range(frames_per_second):
+                animation_frames.append(frame)
 
     return render.Root(
-        delay = 100,  # 100ms per frame = 10fps
+        delay = 100,
         child = render.Animation(
             children = animation_frames,
         ),

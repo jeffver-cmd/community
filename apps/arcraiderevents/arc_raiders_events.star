@@ -193,8 +193,8 @@ def main(config):
             countdown = format_countdown(remaining)
 
             if evt["type"] == "active":
-                status_label = "ACTIVE"
-                status_color = ARC_GREEN
+                status_label = "ARC Raiders"
+                status_color = WHITE
                 divider_color = ARC_YELLOW_DIM
                 timer_color = ARC_GREEN
                 suffix = countdown

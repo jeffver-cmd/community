@@ -89,6 +89,12 @@ def format_countdown(ms_remaining):
     else:
         return "0:" + pad_zero(seconds)
 
+def truncate_name(name, max_chars):
+    """Truncate name to fit display width."""
+    if len(name) > max_chars:
+        return name[:max_chars] + ".."
+    return name
+
 def main(config):
     # Get current time in milliseconds
     now = time.now()
@@ -152,13 +158,6 @@ def main(config):
             "type": "active",
         })
 
-    for event in upcoming_events[:3]:
-        display_events.append({
-            "name": event["name"],
-            "map": event["map"],
-            "remaining_ms": int(event["startTime"]) - now_ms,
-            "type": "upcoming",
-        })
 
     # Fallback if no events
     if len(display_events) == 0:
@@ -180,17 +179,19 @@ def main(config):
         )
 
     # Generate animated frames with live countdown
-    # Each event shown for ~8 seconds, countdown ticks every second
+    # Each event shown for ~4 seconds, countdown ticks every second
     animation_frames = []
-    seconds_per_event = 8
+    seconds_per_event = 4
     frames_per_second = 10  # 10fps
+    global_sec = 0
 
     for evt in display_events:
         for sec in range(seconds_per_event):
-            remaining = evt["remaining_ms"] - (sec * 1000)
+            remaining = evt["remaining_ms"] - (global_sec * 1000)
             if remaining < 0:
                 remaining = 0
             countdown = format_countdown(remaining)
+            global_sec = global_sec + 1
 
             if evt["type"] == "active":
                 status_label = "ARC Raiders"
@@ -225,7 +226,7 @@ def main(config):
             frame = render.Box(
                 color = BG_DARK,
                 child = render.Padding(
-                    pad = (0, 0, 1, 0),
+                    pad = (0, 0, 0, 0),
                     child = render.Column(
                         expanded = True,
                         main_align = "space_between",
@@ -250,27 +251,31 @@ def main(config):
                                 ],
                             ),
                             render.Column(
+                                cross_align = "center",
                                 children = [
                                     render.Box(width = 64, height = 1, color = "#007380"),
                                     render.Box(width = 64, height = 1, color = "#007028"),
-                                    render.Marquee(
-                                        width = 64,
-                                        child = render.Text(evt["name"], color = name_color, font = "tb-8"),
-                                    ),
+                                    render.Text(truncate_name(evt["name"], 15), color = name_color, font = "tom-thumb"),
                                     render.Box(width = 64, height = 1, color = "#806b00"),
                                     render.Box(width = 64, height = 1, color = "#801818"),
                                 ],
                             ),
-                            render.Row(
-                                expanded = True,
-                                main_align = "space_between",
+                            render.Stack(
                                 children = [
-                                    render.Marquee(
-                                        width = 35,
-                                        child = render.Text(evt["map"], color = ARC_CYAN, font = "CG-pixel-3x5-mono"),
+                                    render.Row(
+                                        expanded = True,
+                                        main_align = "start",
+                                        children = [
+                                            render.Text(evt["map"], color = ARC_CYAN, font = "CG-pixel-3x5-mono"),
+                                        ],
                                     ),
-                                    render.Box(width = 2, height = 1),
-                                    render.Text(suffix, color = suffix_color, font = "tom-thumb"),
+                                    render.Row(
+                                        expanded = True,
+                                        main_align = "end",
+                                        children = [
+                                            render.Text(suffix, color = suffix_color, font = "tom-thumb"),
+                                        ],
+                                    ),
                                 ],
                             ),
                         ],

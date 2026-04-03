@@ -1,0 +1,8 @@
+---
+id: arc-raider-events
+name: ARC Raid Events
+summary: ARC Raiders event timers
+desc: Displays active and upcoming ARC Raiders map events with countdown timers. Data sourced from MetaForge.app.
+author: jeffver
+fileName: arc_raiders_events.star
+packageName: arcraiderevents

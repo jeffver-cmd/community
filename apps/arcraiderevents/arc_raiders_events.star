@@ -1,7 +1,7 @@
 """
 Applet: ARC Raid Events
 Summary: ARC Raiders event timers
-Description: Displays active and upcoming ARC Raiders map events with countdown timers. Data sourced from MetaForge.app.
+Description: Displays active and upcoming ARC Raiders in-game events with live countdown timers. Features official brand colors, logo-stripe accents, scrolling event names, and map locations. Filter by map with the configurable dropdown. Data sourced from MetaForge.app.
 Author: jeffver
 """
 
